@@ -50,28 +50,30 @@ END_MESSAGE_MAP()
 
 CCommTestDlg::CCommTestDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CCommTestDlg::IDD, pParent)
-	, dataSend(_T("SA0100#"))
+	, dataSend(_T("4005020022000A73"))
 	, dataRecv(_T(""))
 	, lpszPortNum(_T("COM3"))
 	, dwBaudRate(19200)
 	, byParity(0)
 	, byStopBits(0)
 	, byByteSize(8)
-{
+	, m_is16(FALSE)
+	{
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
 
 void CCommTestDlg::DoDataExchange(CDataExchange* pDX)
 {
-	CDialogEx::DoDataExchange(pDX);
-	DDX_Text(pDX, IDC_EDIT_SEND, dataSend);
-	DDX_Text(pDX, IDC_EDIT_RECV, dataRecv);
-	DDX_Text(pDX, IDC_EDIT_PORT, lpszPortNum);
-	DDX_Text(pDX, IDC_EDIT_RATE, dwBaudRate);
-	DDX_Text(pDX, IDC_EDIT_PARI, byParity);
-	DDX_Text(pDX, IDC_EDIT_STOP, byStopBits);
-	DDX_Text(pDX, IDC_EDIT_BYTE, byByteSize);
-}
+CDialogEx::DoDataExchange(pDX);
+DDX_Text(pDX, IDC_EDIT_SEND, dataSend);
+DDX_Text(pDX, IDC_EDIT_RECV, dataRecv);
+DDX_Text(pDX, IDC_EDIT_PORT, lpszPortNum);
+DDX_Text(pDX, IDC_EDIT_RATE, dwBaudRate);
+DDX_Text(pDX, IDC_EDIT_PARI, byParity);
+DDX_Text(pDX, IDC_EDIT_STOP, byStopBits);
+DDX_Text(pDX, IDC_EDIT_BYTE, byByteSize);
+DDX_Check(pDX, IDC_SHILIU, m_is16);
+	}
 
 BEGIN_MESSAGE_MAP(CCommTestDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
@@ -177,42 +179,107 @@ HCURSOR CCommTestDlg::OnQueryDragIcon()
 
 void CCommTestDlg::OnBnClickedButtonSend()
 {
-	//发送数据
-	UpdateData(TRUE);
-	USES_CONVERSION; 
-	char* str = W2A(dataSend);
-	int write_result = com->WriteData(str, strlen(str));
+	try
+	{
+		if(m_is16)
+		{
+			//发送数据
+			UpdateData(TRUE);
+			USES_CONVERSION; 
+			char* str = W2A(dataSend);
 
-	// -1 ? then we got an error and print it
-	if ( write_result < 0 )
-		MessageBox(A2W(com->GetErrorMessage()));
+			//字节流转换为十六进制字符串
+			char *sDest = new char[strlen(str)/2];
+			com->HexStrToByte(str, sDest, strlen(str));
 
-	char buf[255];
-	int read_result = com->ReadData(buf, DATA_LEN);
+			int write_result = com->WriteData(sDest, strlen(str)/2);
 
-	// -1 ? then we got an error and print it
-	if ( (read_result < 0)  )
-		MessageBox(A2W(com->GetErrorMessage()));
+			// -1 ? then we got an error and print it
+			if ( write_result < 0 )
+				MessageBox(A2W(com->GetErrorMessage()));
 
-	// set end of received data
-	buf[DATA_LEN] = '\0';
+			char buf[DATA_LEN];
+			int read_result = com->ReadData(buf, DATA_LEN);
 
-	dataRecv =  A2W(buf);
+			// -1 ? then we got an error and print it
+			if ( (read_result < 0)  )
+				MessageBox(A2W(com->GetErrorMessage()));
 
-	UpdateData(FALSE);
+			// set end of received data
+			//buf[DATA_LEN] = '\0';
+
+			//十六进制字符串转换为字节流  
+			char *dest = new char[10];
+			com->Hex2Str(buf, dest, 10);
+
+			dataRecv =  A2W(dest);
+
+			UpdateData(FALSE);
+		}
+		else
+		{
+			//发送数据
+			UpdateData(TRUE);
+			USES_CONVERSION; 
+			char* str = W2A(dataSend);
+			int write_result = com->WriteData(str, strlen(str));
+
+			// -1 ? then we got an error and print it
+			if ( write_result < 0 )
+				MessageBox(A2W(com->GetErrorMessage()));
+
+			char buf[DATA_LEN];
+			int read_result = com->ReadData(buf, DATA_LEN);
+
+			// -1 ? then we got an error and print it
+			if ( (read_result < 0)  )
+				MessageBox(A2W(com->GetErrorMessage()));
+
+			// set end of received data
+			//buf[DATA_LEN] = '\0';
+
+			dataRecv =  A2W(buf);
+
+			UpdateData(FALSE);
+		}
+	}catch(...)
+	{
+		MessageBox(L"检查字符串格式！");
+	}
 }
 
 
 void CCommTestDlg::OnBnClickedButtonOpen()
 {
-	UpdateData(true);
-	if ( ! com->Open(lpszPortNum, dwBaudRate, byParity, byStopBits, byByteSize) )
+	CString butCStr;
+	GetDlgItemTextW(IDC_BUTTON_OPEN, butCStr);
+	if(L"打开串口" == butCStr)
 	{
-		USES_CONVERSION; 
-		CString str;
-		str.Format(L"Error: Can't open communication device!\n%s", A2W(com->GetErrorMessage()));
-		MessageBox(str);
-		delete com;
-		return;
+		UpdateData(true);
+		if ( ! com->Open(lpszPortNum, dwBaudRate, byParity, byStopBits, byByteSize) )
+		{
+			USES_CONVERSION; 
+			CString str;
+			str.Format(L"Error: Can't open communication device!\n%s", A2W(com->GetErrorMessage()));
+			MessageBox(str);
+			delete com;
+			return;
+		}		
+		GetDlgItem(IDC_EDIT_PORT)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_RATE)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_PARI)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_STOP)->EnableWindow(FALSE);
+		GetDlgItem(IDC_EDIT_BYTE)->EnableWindow(FALSE);
+		SetDlgItemText(IDC_BUTTON_OPEN, L"关闭串口");
+	}
+	else
+	{
+		com->Close();
+		GetDlgItem(IDC_EDIT_PORT)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDIT_RATE)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDIT_PARI)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDIT_STOP)->EnableWindow(TRUE);
+		GetDlgItem(IDC_EDIT_BYTE)->EnableWindow(TRUE);
+		SetDlgItemText(IDC_BUTTON_OPEN, L"打开串口");
 	}
 }

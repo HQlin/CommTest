@@ -46,5 +46,7 @@ public:
 	CString dataSend;		//发送数据
 	CString dataRecv;		//接收数据
 	
-};
-#define DATA_LEN 1			//接收数据长度
+	// 16进制
+	BOOL m_is16;
+	};
+#define DATA_LEN 255		//接收数据长度

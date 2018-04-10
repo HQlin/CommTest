@@ -17,7 +17,9 @@
 
 #include "StdAfx.h"
 #include <windows.h>
+#include <String>
 
+using namespace std;
 
 class ComAccess 
 {
@@ -50,6 +52,12 @@ public:
 
 	LPSTR	GetErrorMessage(VOID) { return m_lpszErrorMessage; }
 
+	//字节流转换为十六进制字符串  
+	void ByteToHexStr(const char* source, char* dest, int sourceLen);
+	//字节流转换为十六进制字符串的另一种实现方式  
+	void Hex2Str( const char *sSrc,  char *sDest, int nSrcLen );
+	//十六进制字符串转换为字节流  
+	void HexStrToByte(const char* source, char* dest, int sourceLen);
 private:
 
 	VOID	ErrorToString(LPCSTR lpszMessage);
